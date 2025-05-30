@@ -1,0 +1,234 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="shortcut icon" href="fce7d473.gif" type="image/x-icon" />
+    <title>Easy Maze Game</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Pacifico&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: rgb(0, 0, 0);
+        color: white;
+        font-family: "Comic Neue", cursive;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        text-align: center;
+      }
+
+      #maze {
+        display: grid;
+        grid-template-columns: repeat(10, 30px);
+        grid-template-rows: repeat(10, 30px);
+        gap: 2px;
+        margin: 20px;
+      }
+
+      .cell {
+        width: 30px;
+        height: 30px;
+        background-color: rgb(255, 255, 255);
+        box-shadow: 0 0 5px rgb(89, 0, 27);
+        transition: transform 0.2s ease;
+      }
+
+      .wall {
+        background-color: #680028;
+      }
+
+      .path {
+        background-color: #c3daff;
+        background-image: url(A.gif);
+        background-size: contain;
+      }
+
+      .player {
+        background-color: #f6c5e3;
+        background-image: url(pj.gif);
+        background-size: cover;
+        animation: pulse 0.8s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      #resetBtn {
+        padding: 10px 20px;
+        font-size: 16px;
+        background-color: #680028;
+        color: rgb(0, 0, 0);
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 10px;
+        box-shadow: 0 0 10px #680028;
+      }
+
+      .mobile-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+      }
+
+      .row {
+        display: flex;
+      }
+
+      .control-btn {
+        width: 50px;
+        height: 50px;
+        margin: 5px;
+        background-color: #680028;
+        color: rgb(0, 0, 0);
+        font-size: 20px;
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 0 10px #680028;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Okayyy let's playy something <img src="ok.gif" alt="ok" /></h1>
+    <div id="maze"></div>
+    <button id="resetBtn">Reset Game</button>
+
+    <div class="mobile-controls">
+      <div class="row">
+        <button class="control-btn" onclick="movePlayer(0, -1)">&#9650;</button>
+      </div>
+      <div class="row">
+        <button class="control-btn" onclick="movePlayer(-1, 0)">&#9664;</button>
+        <button class="control-btn" onclick="movePlayer(1, 0)">&#9654;</button>
+      </div>
+      <div class="row">
+        <button class="control-btn" onclick="movePlayer(0, 1)">&#9660;</button>
+      </div>
+    </div>
+
+    <audio
+      id="moveSound"
+      src="https://www.soundjay.com/button/sounds/button-3.mp3"
+    ></audio>
+    <audio
+      id="winSound"
+      src="https://www.soundjay.com/button/sounds/button-4.mp3"
+    ></audio>
+
+    <script>
+      const mazeLayout = [
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+        [0, 1, 1, 1, 1, 1, 1, 0, 1, 0],
+        [0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+        [1, 1, 1, 1, 1, 0, 1, 0, 1, 0],
+        [0, 0, 0, 0, 1, 0, 1, 0, 1, 0],
+        [0, 1, 1, 0, 1, 0, 0, 0, 1, 0],
+        [0, 1, 0, 0, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 1, 1, 2, 0, 0, 0, 0],
+      ];
+
+      const maze = document.getElementById("maze");
+      const moveSound = document.getElementById("moveSound");
+      const winSound = document.getElementById("winSound");
+      const resetBtn = document.getElementById("resetBtn");
+
+      let playerPosition = JSON.parse(
+        localStorage.getItem("playerPosition")
+      ) || { x: 0, y: 0 };
+      let hasWon = false;
+
+      function saveProgress() {
+        localStorage.setItem("playerPosition", JSON.stringify(playerPosition));
+      }
+
+      function drawMaze() {
+        maze.innerHTML = "";
+        for (let y = 0; y < 10; y++) {
+          for (let x = 0; x < 10; x++) {
+            const cell = document.createElement("div");
+            cell.classList.add("cell");
+            if (mazeLayout[y][x] === 1) {
+              cell.classList.add("wall");
+            } else if (mazeLayout[y][x] === 2) {
+              cell.classList.add("path");
+            }
+            if (playerPosition.x === x && playerPosition.y === y) {
+              cell.classList.add("player");
+            }
+            maze.appendChild(cell);
+          }
+        }
+      }
+
+      function movePlayer(dx, dy) {
+        if (hasWon) return;
+        const newX = playerPosition.x + dx;
+        const newY = playerPosition.y + dy;
+        if (newX >= 0 && newX < 10 && newY >= 0 && newY < 10) {
+          if (mazeLayout[newY][newX] !== 1) {
+            playerPosition = { x: newX, y: newY };
+            drawMaze();
+            moveSound.play();
+            saveProgress();
+            checkWin();
+          }
+        }
+      }
+
+      function checkWin() {
+        if (mazeLayout[playerPosition.y][playerPosition.x] === 2) {
+          winSound.play();
+          hasWon = true;
+          setTimeout(() => {
+            window.location.href = "sorrynor.html";
+          }, 500);
+        }
+      }
+
+      document.addEventListener("keydown", (e) => {
+        switch (e.key) {
+          case "ArrowUp":
+            movePlayer(0, -1);
+            break;
+          case "ArrowDown":
+            movePlayer(0, 1);
+            break;
+          case "ArrowLeft":
+            movePlayer(-1, 0);
+            break;
+          case "ArrowRight":
+            movePlayer(1, 0);
+            break;
+        }
+      });
+
+      resetBtn.addEventListener("click", () => {
+        hasWon = false;
+        playerPosition = { x: 0, y: 0 };
+        localStorage.removeItem("playerPosition");
+        drawMaze();
+      });
+
+      drawMaze();
+    </script>
+  </body>
+</html>
